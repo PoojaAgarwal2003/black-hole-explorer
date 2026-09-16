@@ -1,19 +1,46 @@
-# Singularity
+# Singularity — An Interactive Black Hole Observatory
 
-An interactive black hole observatory built with Three.js, TypeScript, Vite, and custom GLSL. No backend, account, API key, or external image assets.
+Explore a cinematic black hole, bend light with a custom GLSL lensing shader, launch orbital probes, and tune the simulation in real time. Built with Three.js, TypeScript, and Vite—without a backend, account, API key, or external image assets.
 
-## Run
+<p align="center">
+  <img src="docs/images/observatory-control-room.png" alt="Singularity observatory showing the gravitationally lensed accretion disk and control room" width="100%">
+</p>
 
-Requires Node.js 22.12+ (or 24+).
+<table>
+  <tr>
+    <td width="72%"><img src="docs/images/probe-flight.png" alt="A probe trajectory launched past the black hole"></td>
+    <td width="28%" align="center"><img src="docs/images/mobile-observatory.png" alt="Singularity mobile observatory interface" width="260"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Launch probes and follow capture, orbit, or escape trajectories</sub></td>
+    <td align="center"><sub>Responsive mobile observatory</sub></td>
+  </tr>
+</table>
 
-```sh
-npm install
+## Highlights
+
+- Real-time Schwarzschild-inspired ray bending with far-side disk images, bloom, turbulence, and Doppler-inspired beaming.
+- Interactive gravity, spin, disk temperature, quality, lensing, trails, and up to 16,000 GPU-driven particles.
+- Launch probes from the controls or directly from the scene and inspect captured, orbiting, and escaping trajectories.
+- Responsive mouse, keyboard, touch, reduced-motion, and full-screen controls with local PNG capture.
+- Optional native Windows live-wallpaper host that runs the same observatory behind desktop icons.
+
+## Quick start
+
+Requires Node.js 22.12+ (Node 24 recommended) and a current WebGL 2 browser.
+
+```powershell
+git clone https://github.com/PoojaAgarwal2003/black-hole-explorer.git
+Set-Location black-hole-explorer
+npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. On this Windows machine, `.\start.ps1` also finds the portable Node.js installation created with the project.
+Open **http://127.0.0.1:5173**. On Windows, `.\start.ps1` starts the same development server.
 
-```sh
+### Build and checks
+
+```powershell
 npm run build
 npm run preview
 npm test
@@ -77,7 +104,7 @@ This is a portfolio visualization, **not a scientific general-relativity solver*
 
 ## Windows live wallpaper
 
-The `feature/live-wallpaper` branch adds a native .NET 10 / WinForms / WebView2 host. The original web experience is preserved on `main`.
+The `main` branch also includes an optional native .NET 10 / WinForms / WebView2 host. The browser experience remains unchanged; the wallpaper host is opt-in and starts only through `wallpaper.ps1`.
 
 ```powershell
 .\wallpaper.ps1 -Action Build
