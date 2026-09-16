@@ -2,3 +2,6 @@ node_modules/
 dist/
 artifacts/
 *.local
+wallpaper/**/bin/
+wallpaper/**/obj/
+wallpaper/publish/

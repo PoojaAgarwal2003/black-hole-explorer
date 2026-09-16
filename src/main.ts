@@ -1,5 +1,7 @@
 import './style.css';
 import { Observatory } from './observatory';
+import type { Simulation } from './observatory';
+import { DesktopConnection, isControlRoom, isWallpaper, RemoteObservatory } from './desktop';
 import { defaults, presets } from './state';
 import type { PresetName, Settings } from './state';
 import { icon, mountUI } from './ui';
@@ -11,6 +13,8 @@ function element<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 
 const app = element('app');
+app.classList.toggle('wallpaper-mode', isWallpaper);
+app.classList.toggle('controls-mode', isControlRoom);
 mountUI(app);
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const settings: Settings = { ...defaults, paused: reducedMotion };
@@ -61,9 +65,12 @@ element('mobile-controls').addEventListener('click', () => setMobileControls(tru
 element('close-controls').addEventListener('click', () => setMobileControls(false));
 
 function boot(): void {
-  let observatory: Observatory;
+  let observatory: Simulation;
+  const desktop = isWallpaper || isControlRoom ? new DesktopConnection() : null;
   try {
-    observatory = new Observatory(element('universe'), settings);
+    observatory = isControlRoom && desktop
+      ? new RemoteObservatory(desktop, settings)
+      : new Observatory(element('universe'), settings, isWallpaper ? 30 : 0);
   } catch (error) {
     console.error('Unable to initialize the observatory:', error);
     showGraphicsError('WebGL 2 could not start. Use a current version of Chrome, Edge, Firefox, or Safari with hardware acceleration enabled.');
@@ -115,6 +122,14 @@ function boot(): void {
     element('object-class').textContent = Math.abs(settings.spin) < 0.05 ? 'NON-ROTATING BLACK HOLE' : 'ROTATING BLACK HOLE';
   }
 
+  const syncRemoteSettings = (): void => {
+    preset = (['gargantua', 'quiet', 'chaos'] as const).find(name =>
+      (['gravity', 'spin', 'temperature', 'particleCount'] as const).every(key => presets[name][key] === settings[key]),
+    ) ?? null;
+    syncUI();
+  };
+  if (observatory instanceof RemoteObservatory) observatory.onSettings = syncRemoteSettings;
+
   for (const key of ranges) {
     element<HTMLInputElement>(key).addEventListener('input', event => {
       if (!(event.currentTarget instanceof HTMLInputElement)) return;
@@ -156,6 +171,7 @@ function boot(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(button => {
     button.addEventListener('click', () => {
       settings.speed = Number(button.dataset.speed);
+      observatory.applySettings();
       syncUI();
     });
   });
@@ -193,6 +209,13 @@ function boot(): void {
     toast('All probes and trajectories cleared.');
   });
   element('reset-camera').addEventListener('click', () => observatory.resetCamera());
+  element('desktop-reset-camera').addEventListener('click', () => observatory.resetCamera());
+  element('desktop-orbit-left').addEventListener('click', () => observatory.orbit(-0.04, 0));
+  element('desktop-orbit-right').addEventListener('click', () => observatory.orbit(0.04, 0));
+  element('desktop-orbit-up').addEventListener('click', () => observatory.orbit(0, 0.06));
+  element('desktop-orbit-down').addEventListener('click', () => observatory.orbit(0, -0.06));
+  element('desktop-zoom-in').addEventListener('click', () => observatory.zoom(0.85));
+  element('desktop-zoom-out').addEventListener('click', () => observatory.zoom(1.15));
   element('fullscreen').addEventListener('click', () => { void fullscreen(); });
   document.addEventListener('fullscreenchange', () => {
     element('fullscreen').setAttribute('aria-label', document.fullscreenElement ? 'Exit full screen' : 'Toggle full screen');
@@ -246,6 +269,32 @@ function boot(): void {
     label.style.opacity = telemetry.distance < 8 ? '0' : '';
   };
 
+  const canvas = isWallpaper ? null : element('universe').querySelector('canvas');
+  let pointerStart: { x: number; y: number; time: number; id: number; dragged: boolean } | null = null;
+  const activePointers = new Set<number>();
+  canvas?.addEventListener('pointerdown', event => {
+    activePointers.add(event.pointerId);
+    pointerStart = event.button === 0 && activePointers.size === 1
+      ? { x: event.clientX, y: event.clientY, time: performance.now(), id: event.pointerId, dragged: false }
+      : null;
+  });
+  canvas?.addEventListener('pointermove', event => {
+    if (pointerStart && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5) pointerStart.dragged = true;
+  });
+  canvas?.addEventListener('pointercancel', event => {
+    activePointers.delete(event.pointerId);
+    pointerStart = null;
+  });
+  canvas?.addEventListener('pointerup', event => {
+    activePointers.delete(event.pointerId);
+    const start = pointerStart;
+    pointerStart = null;
+    if (!start || start.dragged || start.id !== event.pointerId || performance.now() - start.time > 600 || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 5) return;
+    const bounds = canvas.getBoundingClientRect();
+    observatory.launchAt((event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height);
+  });
+  if (isWallpaper && desktop) desktop.authority(observatory, settings, syncRemoteSettings);
+
   syncUI();
   observatory.start();
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -255,6 +304,7 @@ function boot(): void {
   }));
   const cleanup = (): void => {
     observatory.dispose();
+    desktop?.dispose();
     document.removeEventListener('keydown', keyHandler);
     clearTimeout(toastTimer);
   };

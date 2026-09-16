@@ -10,7 +10,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createStarfield } from './starfield';
-import { createProbe, FixedStepper, stepBody } from './physics';
+import { createProbe, createProbeFromPosition, FixedStepper, stepBody } from './physics';
 import type { Body } from './physics';
 import { qualityOptions } from './state';
 import type { Settings } from './state';
@@ -37,6 +37,26 @@ export interface Telemetry {
   captured: number;
   escaped: number;
   distance: number;
+  lastLaunch: { x: number; y: number } | null;
+}
+
+export interface Simulation {
+  onTelemetry: (telemetry: Telemetry) => void;
+  onProbeEvent: (message: string) => void;
+  onError: (message: string) => void;
+  applySettings(): void;
+  start(): void;
+  launch(): boolean;
+  launchAt(x: number, y: number): boolean;
+  clearProbes(): void;
+  reset(): void;
+  resetCamera(): void;
+  orbit(dx: number, dy: number): void;
+  zoom(factor: number): void;
+  snapshot(): Promise<Blob>;
+  getHorizonPosition(): { x: number; y: number };
+  setSuspended(suspended: boolean): void;
+  dispose(): void;
 }
 
 export class Observatory {
@@ -77,10 +97,15 @@ export class Observatory {
   private width = 1;
   private height = 1;
   private appliedQuality: Settings['quality'] | null = null;
+  private lastLaunch: { x: number; y: number } | null = null;
+  private suspended = false;
+  private lastRenderTime = 0;
+  private readonly maxFps: number;
 
-  constructor(host: HTMLElement, settings: Settings) {
+  constructor(host: HTMLElement, settings: Settings, maxFps = 0) {
     this.host = host;
     this.settings = settings;
+    this.maxFps = maxFps;
     this.renderer = new WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x050709);
     this.renderer.toneMapping = ACESFilmicToneMapping;
@@ -202,12 +227,39 @@ export class Observatory {
   }
 
   launch(): boolean {
+    const azimuth = Math.atan2(this.camera.position.z, this.camera.position.x) - 1.0;
+    const body = createProbe(this.settings.gravity, this.settings.launchSpeed, this.settings.impact, azimuth);
+    return this.addProbe(body);
+  }
+
+  launchAt(x: number, y: number): boolean {
+    if (![x, y].every(value => Number.isFinite(value) && value >= 0 && value <= 1)) {
+      this.onProbeEvent('Choose a launch point inside the observation.');
+      return false;
+    }
+    this.camera.updateMatrixWorld();
+    const direction = new Vector3(x * 2 - 1, 1 - y * 2, 0.5).unproject(this.camera).sub(this.camera.position).normalize();
+    const normal = this.camera.getWorldDirection(new Vector3());
+    const depth = -this.camera.position.dot(normal) / direction.dot(normal);
+    const position = this.camera.position.clone().addScaledVector(direction, depth);
+    if (position.length() < this.settings.gravity * 2.8) {
+      this.onProbeEvent('Click outside the black hole shadow to launch a visible probe.');
+      return false;
+    }
+    const body = createProbeFromPosition(
+      [position.x, position.y, position.z], this.settings.gravity, this.settings.launchSpeed,
+      this.settings.impact, [normal.x, normal.y, normal.z],
+    );
+    return this.addProbe(body);
+  }
+
+  private addProbe(body: Body): boolean {
     if (this.probes.length >= 16) {
       this.onProbeEvent('Probe limit reached. Clear trajectories before launching more.');
       return false;
     }
-    const azimuth = Math.atan2(this.camera.position.z, this.camera.position.x) - 1.0;
-    const body = createProbe(this.settings.gravity, this.settings.launchSpeed, this.settings.impact, azimuth);
+    const screen = new Vector3(...body.position).project(this.camera);
+    this.lastLaunch = { x: (screen.x + 1) / 2, y: (1 - screen.y) / 2 };
     const mesh = new Mesh(this.probeGeometry, this.probeMaterial);
     mesh.position.fromArray(body.position);
     const positions = new Float32Array(720 * 3);
@@ -241,6 +293,7 @@ export class Observatory {
     this.elapsed = 0;
     this.captured = 0;
     this.escaped = 0;
+    this.lastLaunch = null;
     this.stepper.reset();
     this.controls.reset();
     this.applySettings();
@@ -249,6 +302,26 @@ export class Observatory {
   resetCamera(): void {
     this.controls.reset();
     this.applySettings();
+  }
+
+  orbit(dx: number, dy: number): void {
+    const radius = this.camera.position.length();
+    const theta = Math.atan2(this.camera.position.x, this.camera.position.z) - dx * Math.PI * 2;
+    const phi = Math.max(0.07, Math.min(Math.PI - 0.07, Math.acos(this.camera.position.y / radius) - dy * Math.PI));
+    this.camera.position.set(radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.cos(theta));
+    this.controls.update();
+  }
+
+  zoom(factor: number): void {
+    this.camera.position.setLength(Math.max(this.controls.minDistance, Math.min(this.controls.maxDistance, this.camera.position.length() * factor)));
+    this.controls.update();
+  }
+
+  setSuspended(suspended: boolean): void {
+    this.suspended = suspended;
+    this.lastTime = performance.now();
+    this.fpsTime = this.lastTime;
+    this.frames = 0;
   }
 
   async snapshot(): Promise<Blob> {
@@ -330,7 +403,9 @@ export class Observatory {
   private animate = (now: number): void => {
     if (this.disposed) return;
     this.frame = requestAnimationFrame(this.animate);
-    if (document.hidden) return;
+    if (document.hidden || this.suspended) return;
+    if (this.maxFps && now - this.lastRenderTime < 1000 / this.maxFps - 1) return;
+    this.lastRenderTime = now;
     const delta = Math.min((now - this.lastTime) / 1000, 0.05);
     this.lastTime = now;
     this.controls.update(delta);
@@ -350,6 +425,7 @@ export class Observatory {
         captured: this.captured,
         escaped: this.escaped,
         distance: this.camera.position.length() / this.settings.gravity,
+        lastLaunch: this.lastLaunch,
       });
       this.frames = 0;
       this.fpsTime = now;

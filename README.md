@@ -28,6 +28,7 @@ Deploy the generated `dist` directory to any static host. Asset URLs are relativ
 ## Explore
 
 - Drag to orbit, scroll or pinch to zoom. Focus the canvas to orbit with arrow keys and zoom with `+` / `-`.
+- Click a point outside the shadow to launch a probe from that exact screen position. Clicks and drags are distinguished; orbiting does not accidentally launch probes.
 - Adjust gravity, spin, disk color temperature, and up to 16,000 GPU-driven infalling particles.
 - Switch gravitational lensing, camera auto-orbit, and probe trails independently.
 - Launch up to 16 probes with configurable velocity and impact parameter. Zero impact favors infall; high velocity and a large impact parameter favor escape.
@@ -73,3 +74,59 @@ This is a portfolio visualization, **not a scientific general-relativity solver*
 | `src/ui.ts`, `src/style.css` | Responsive observatory interface |
 | `src/main.ts` | Controls, accessibility, events, export, error handling |
 | `tests/` | Physics invariants and end-to-end browser checks |
+
+## Windows live wallpaper
+
+The `feature/live-wallpaper` branch adds a native .NET 10 / WinForms / WebView2 host. The original web experience is preserved on `main`.
+
+```powershell
+.\wallpaper.ps1 -Action Build
+.\wallpaper.ps1 -Action Start
+```
+
+Building requires Node.js, the .NET 10 SDK, and the WebView2 SDK package. The script restores the package on a first build, using the local NuGet cache when available. Running requires the **.NET 10 Windows Desktop Runtime** and **Microsoft Edge WebView2 Runtime**; both are already installed on the development machine.
+
+The published application is `wallpaper\publish\Singularity.Wallpaper.exe`. It embeds the production assets through a local WebView2 virtual host, so **no Vite server, internet connection, or browser tab is required**.
+
+### Desktop controls
+
+| Action | How |
+| --- | --- |
+| Launch at a point | Click empty desktop outside the black hole shadow |
+| Orbit / zoom | Alt + drag / Alt + mouse wheel on empty desktop, or use the control-room camera buttons |
+| Show/hide settings | `Ctrl+Alt+B`, double-click the tray icon, or use its menu |
+| Close the settings window | Hides it to the tray; does not stop the wallpaper |
+| Stop the wallpaper | Tray menu: **Exit and restore static wallpaper** |
+| Select a display | Tray menu: **Wallpaper display** |
+| Disable desktop interaction | Uncheck **Desktop click-to-launch** in the tray menu |
+| Pin settings over other apps | Enable **Keep control room on top** in the tray menu |
+
+The right-hand control room drives the **same simulation**, not a second WebGL renderer. Gravity, spin, particles, time, presets, capture, and probe settings are synchronized. Launches retain the 16-probe cap; points inside the apparent shadow are rejected with a notice.
+
+The wallpaper is placed in Explorer's background WorkerW layer, behind its icon view. The mouse observer **never consumes input**, ignores icons and other application windows, and does not record keyboard input or mouse activity. Normal icon activation, selection, dragging, and the desktop context menu remain Explorer's responsibility. Alt-drag can also show Explorer's normal selection rectangle because input is deliberately not blocked.
+
+The settings panel is a normal, independently interactive window: it covers only its own rectangle and can be moved or hidden to expose icons underneath. Existing Windows desktop-icon visibility settings are respected.
+
+The native renderer is capped at 30 FPS. Rendering suspends while the selected display is covered by a maximized/fullscreen foreground app or the session is locked. User pause state is separate from that automatic suspension. On Explorer/display changes, the host reconnects; a renderer restart resets probes but retains settings.
+
+No administrator rights, Explorer process termination, startup registration, static-wallpaper replacement, or icon-window reparenting is used. The WorkerW convention is **undocumented and Windows-version-dependent**, so future Insider builds may require adaptation. Attachment failure is surfaced rather than placing a window over the icons.
+
+### Management and diagnostics
+
+```powershell
+.\wallpaper.ps1 -Action Status
+.\wallpaper.ps1 -Action Show
+.\wallpaper.ps1 -Action Hide
+.\wallpaper.ps1 -Action Pause
+.\wallpaper.ps1 -Action Resume
+.\wallpaper.ps1 -Action Launch -X 0.78 -Y 0.32
+.\wallpaper.ps1 -Action Snapshot
+.\wallpaper.ps1 -Action SelfTest
+.\wallpaper.ps1 -Action Stop
+```
+
+Management uses a current-user-only named pipe, not a network service. `SelfTest` exercises the actual hosted renderer and companion controls, resets probes, and restores the prior settings. `Snapshot` saves only the simulation, not other desktop windows.
+
+Settings, the isolated browser profile, logs, and optional captures live in `%LOCALAPPDATA%\Singularity`. Rebuild only after stopping the application, since Windows locks running executable files.
+
+`npm run test:desktop` checks two-window synchronization, remote capture, point launching, the probe cap, and click-versus-drag behavior in a browser. The existing web and graphics checks remain available.

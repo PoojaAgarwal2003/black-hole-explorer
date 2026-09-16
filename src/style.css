@@ -203,6 +203,34 @@ kbd { font: 8px var(--mono); border: 1px solid #6e737944; border-radius: 3px; pa
 .dialog-foot > span { font: 7px var(--mono); color: #81848a; }
 .dialog-foot .small-button { color: #d3b395; }
 .mobile-controls, #close-controls { display: none; }
+.desktop-camera { display: none; }
+
+.wallpaper-mode { min-height: 0 !important; }
+.wallpaper-mode .topbar, .wallpaper-mode .transport, .wallpaper-mode .control-panel,
+.wallpaper-mode .hud, .wallpaper-mode .mobile-controls, .wallpaper-mode .viewport-grain { display: none; }
+.wallpaper-mode .viewport { width: 100%; }
+.wallpaper-mode .toast { left: 50%; bottom: 50px; }
+.controls-mode { min-height: 300px !important; }
+.controls-mode .topbar, .controls-mode .viewport, .controls-mode .panel-number,
+.controls-mode #close-controls, .controls-mode .transport-message { display: none !important; }
+.controls-mode .control-panel { position: relative !important; inset: auto !important; display: flex !important; width: 100% !important; box-shadow: none; border: 0; }
+.controls-mode .panel-heading { padding: 18px 23px; }
+.controls-mode .desktop-camera { display: block; flex-shrink: 0; padding: 14px 23px; border-bottom: 1px solid var(--line); }
+.desktop-camera p { font-size: 10px; line-height: 1.7; color: #a6aab2; margin: 0 0 10px; }
+.desktop-camera > div { display: flex; justify-content: space-between; gap: 5px; }
+.desktop-camera button { display: grid; place-items: center; background: #1c2027; border: 1px solid #ffffff10; border-radius: 4px; height: 29px; width: 31px; color: #e6c3a3; font-size: 16px; }
+.desktop-camera .icon { width: 13px; height: 13px; }
+.desktop-camera small { display: block; margin-top: 12px; color: #8b919a; font: 6px var(--mono); letter-spacing: 0.04em; }
+.controls-mode .transport { height: 62px; padding: 0 12px; gap: 4px; }
+.controls-mode .time-controls { gap: 8px; }
+.controls-mode .transport-divider, .controls-mode .fps-readout, .controls-mode #snapshot span { display: none; }
+.controls-mode .utility-controls { gap: 0; }
+.controls-mode .utility-controls .small-button { padding: 7px; border: 0; }
+.controls-mode .speed-controls { gap: 0; }
+.controls-mode .speed-controls button { padding: 6px; font-size: 8px; }
+.controls-mode .time-readout output { font-size: 11px; }
+.controls-mode .time-readout > span { font-size: 5px; }
+.controls-mode .toast { left: 50%; bottom: 74px; font-size: 10px; }
 
 @media (min-width: 1600px) {
   .control-panel { width: 330px; }

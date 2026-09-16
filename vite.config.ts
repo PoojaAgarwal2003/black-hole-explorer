@@ -5,7 +5,7 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    watch: { ignored: ['**/artifacts/**'] },
+    watch: { ignored: ['**/artifacts/**', '**/wallpaper/**'] },
   },
   preview: { port: 4173, strictPort: true },
   build: {

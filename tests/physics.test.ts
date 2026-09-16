@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { acceleration, createProbe, FixedStepper, magnitude, stepBody } from '../src/physics.ts';
+import { acceleration, createProbe, createProbeFromPosition, FixedStepper, magnitude, stepBody } from '../src/physics.ts';
 import type { Body } from '../src/physics.ts';
 
 const field = { gravity: 1, spin: 0 };
@@ -96,4 +96,25 @@ test('launch azimuth rotates position and velocity without changing their magnit
   const b = createProbe(1.65, 1.4, 0.6, Math.PI / 3);
   assert.ok(Math.abs(magnitude(a.position) - magnitude(b.position)) < 1e-10);
   assert.ok(Math.abs(magnitude(a.velocity) - magnitude(b.velocity)) < 1e-10);
+});
+
+test('point launches preserve the supplied origin and velocity magnitude', () => {
+  const point: [number, number, number] = [9, 4, 0];
+  const body = createProbeFromPosition(point, 1, 1.4, 0.56, [0, 0, 1]);
+  assert.deepEqual(body.position, point);
+  assert.notEqual(body.position, point);
+  assert.ok(Math.abs(magnitude(body.velocity) - 2.2 * 1.4) < 1e-10);
+  assert.ok(body.position.reduce((sum, value, index) => sum + value * body.velocity[index], 0) < 0);
+});
+
+test('zero-impact point launches aim directly at the hole', () => {
+  const body = createProbeFromPosition([8, 0, 0], 1, 1, 0, [0, 0, 1]);
+  assert.ok(body.velocity[0] < 0);
+  assert.equal(Math.abs(body.velocity[1]), 0);
+  assert.equal(Math.abs(body.velocity[2]), 0);
+});
+
+test('point launches reject the horizon and degenerate launch planes', () => {
+  assert.throws(() => createProbeFromPosition([0.5, 0, 0], 1, 1, 0.5, [0, 0, 1]), RangeError);
+  assert.throws(() => createProbeFromPosition([8, 0, 0], 1, 1, 0.5, [1, 0, 0]), RangeError);
 });

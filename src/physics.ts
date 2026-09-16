@@ -75,6 +75,26 @@ export function createProbe(gravity: number, speed: number, impact: number, azim
   };
 }
 
+export function createProbeFromPosition(position: Vec3, gravity: number, speed: number, impact: number, normal: Vec3): Body {
+  const radius = magnitude(position);
+  if (!position.every(Number.isFinite) || radius <= gravity * 1.04) {
+    throw new RangeError('A probe must start outside the event horizon.');
+  }
+  const radial: Vec3 = [position[0] / radius, position[1] / radius, position[2] / radius];
+  const tangent: Vec3 = [
+    normal[1] * radial[2] - normal[2] * radial[1],
+    normal[2] * radial[0] - normal[0] * radial[2],
+    normal[0] * radial[1] - normal[1] * radial[0],
+  ];
+  const length = magnitude(tangent);
+  if (!Number.isFinite(length) || length < 1e-8) throw new RangeError('The launch plane must be perpendicular to the radial direction.');
+  const tangential = Math.max(-0.95, Math.min(0.95, impact));
+  const inward = Math.sqrt(1 - tangential * tangential);
+  const component = (axis: number) => 2.2 * speed * (-inward * radial[axis] + tangential * tangent[axis] / length);
+  const velocity: Vec3 = [component(0), component(1), component(2)];
+  return { position: [...position], velocity, age: 0, status: 'active' };
+}
+
 export class FixedStepper {
   private accumulator = 0;
   readonly step = 1 / 120;

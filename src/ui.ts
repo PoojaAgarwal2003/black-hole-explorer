@@ -58,7 +58,7 @@ export function mountUI(app: HTMLElement): void {
           <div><h2 id="object-name">Gargantua</h2><span id="object-class">ROTATING BLACK HOLE</span></div>
         </div>
         <div class="view-controls hud"><button id="reset-camera" class="small-button" title="Return to the initial camera angle">${icon('orbit')} Reset view</button><button id="fullscreen" class="icon-button" aria-label="Toggle full screen" title="Full screen (F)">${icon('expand')}</button></div>
-        <div class="orbit-hint hud">${icon('mouse')} <span>DRAG TO ORBIT</span><span class="hint-dot"></span><span>SCROLL TO EXPLORE</span></div>
+        <div class="orbit-hint hud">${icon('mouse')} <span>DRAG TO ORBIT</span><span class="hint-dot"></span><span>CLICK TO LAUNCH / SCROLL TO EXPLORE</span></div>
         <button id="mobile-controls" class="mobile-controls">${icon('sliders')} Control room</button>
         <div id="loading" class="loading"><div class="loading-orbit"></div><span>ESTABLISHING OBSERVATION</span><small>Tracing the paths of light...</small></div>
         <div id="graphics-error" class="graphics-error" role="alert" hidden><h2>Observation interrupted</h2><p id="graphics-error-message"></p><button id="reload" class="primary-button">Reload observatory ${icon('reset')}</button></div>
@@ -66,6 +66,19 @@ export function mountUI(app: HTMLElement): void {
 
       <aside id="control-panel" class="control-panel" aria-label="Simulation controls">
         <div class="panel-heading"><div><span class="eyebrow">YOUR UNIVERSE. YOUR RULES.</span><h2>Control room</h2></div><span class="panel-number">01 /</span><button id="close-controls" class="icon-button" aria-label="Close control room">${icon('close')}</button></div>
+        <div class="desktop-camera">
+          <p>Click empty desktop to launch a probe.<br>Alt + drag to orbit. Alt + scroll to zoom.</p>
+          <div role="group" aria-label="Wallpaper camera">
+            <button id="desktop-orbit-left" aria-label="Orbit left">&larr;</button>
+            <button id="desktop-orbit-right" aria-label="Orbit right">&rarr;</button>
+            <button id="desktop-orbit-up" aria-label="Orbit up">&uarr;</button>
+            <button id="desktop-orbit-down" aria-label="Orbit down">&darr;</button>
+            <button id="desktop-zoom-in" aria-label="Zoom in">+</button>
+            <button id="desktop-zoom-out" aria-label="Zoom out">&minus;</button>
+            <button id="desktop-reset-camera" aria-label="Reset wallpaper camera">${icon('reset')}</button>
+          </div>
+          <small>CTRL + ALT + B &nbsp; HIDE / SHOW THIS PANEL</small>
+        </div>
         <div class="panel-scroll">
           <section class="control-section preset-section">
             <div class="section-label">01 <span>SELECT A SYSTEM</span></div>
